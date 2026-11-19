@@ -1,0 +1,97 @@
+services:
+  # ---------- Datalake ----------
+  # MinIO retiró sus imágenes de Docker Hub en 2026; usamos la que publica Chainguard.
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: server /data --console-address ":9001"
+    user: "0"
+    env_file: .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # ---------- Base relacional ----------
+  mysql:
+    image: mysql:8.4
+    env_file: .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/mysql:/docker-entrypoint-initdb.d:ro   # crea tablas y triggers la primera vez
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      retries: 30
+
+  # ---------- Base distribuida: MongoDB replicado en 3 nodos regionales ----------
+  mongo-bogota:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo_bogota:/data/db
+
+  mongo-medellin:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo_medellin:/data/db
+
+  mongo-cali:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo_cali:/data/db
+
+  # Une los 3 nodos en un replica set (se ejecuta una vez y termina)
+  mongo-init:
+    image: mongo:7
+    depends_on: [mongo-bogota, mongo-medellin, mongo-cali]
+    restart: on-failure
+    command:
+      - mongosh
+      - --host
+      - mongo-bogota
+      - --quiet
+      - --eval
+      - >-
+        try { rs.status(); print('replica set ya iniciado') }
+        catch (e) { rs.initiate({_id: 'rs0', members: [
+          {_id: 0, host: 'mongo-bogota:27017', priority: 2},
+          {_id: 1, host: 'mongo-medellin:27017'},
+          {_id: 2, host: 'mongo-cali:27017'}]}); print('replica set creado') }
+
+  # ---------- Aplicación ----------
+  # Pipeline: Moodle -> datalake -> MySQL + MongoDB
+  ingestor:
+    build: .
+    env_file: .env
+    depends_on: [minio, mysql, mongo-init]
+    restart: unless-stopped
+
+  # API + página web en http://localhost:8000
+  api:
+    build: .
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on: [minio, mysql, mongo-init]
+    restart: unless-stopped
+
+  # Herramienta para ver el datalake:  docker compose run --rm mc ls --recursive local/datalake
+  mc:
+    image: cgr.dev/chainguard/minio-client:latest
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000
+    depends_on: [minio]
+    profiles: ["herramientas"]
+
+volumes:
+  minio_data:
+  mysql_data:
+  mongo_bogota:
+  mongo_medellin:
+  mongo_cali:

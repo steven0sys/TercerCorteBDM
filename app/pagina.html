@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mis entregas UNIMINUTO</title>
+<style>
+  :root{--fondo:#f4f6f8;--tarjeta:#fff;--texto:#1d2430;--suave:#5b6574;--borde:#e3e6ea;--marca:#1b4f9c;
+        --alta:#c62828;--media:#e68a00;--baja:#2e7d32;--info:#8f99a3}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--fondo);color:var(--texto)}
+  header{background:var(--marca);color:#fff;padding:18px 16px}
+  header div{max-width:960px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:22px} header small{opacity:.85}
+  main{max-width:960px;margin:24px auto;padding:0 16px}
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--borde);border-radius:10px;padding:20px;margin-bottom:20px}
+  .pestanas{display:flex;gap:8px;margin-bottom:16px}
+  .pestanas button{flex:1;padding:10px;border:1px solid var(--borde);background:#fff;border-radius:8px;cursor:pointer;font-size:15px}
+  .pestanas button.activa{background:var(--marca);color:#fff;border-color:var(--marca)}
+  label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+  input,select{width:100%;padding:10px;border:1px solid #c9ced5;border-radius:8px;font-size:15px}
+  .boton{margin-top:16px;padding:11px 18px;background:var(--marca);color:#fff;border:0;border-radius:8px;font-size:15px;cursor:pointer}
+  .boton.secundario{background:#fff;color:var(--marca);border:1px solid var(--marca);margin-top:0}
+  .boton:disabled{opacity:.6;cursor:wait}
+  .ayuda{background:#eef3fb;border-radius:8px;padding:10px 12px;font-size:13px;color:#33415c;margin-top:8px}
+  .mensaje{margin-top:12px;font-size:14px} .error{color:var(--alta)} .ok{color:var(--baja)}
+  .oculto{display:none}
+  .barra{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .barra h2{margin:0;font-size:19px}
+  .acciones{display:flex;gap:8px;flex-wrap:wrap}
+  .tabla{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:9px 8px;border-bottom:1px solid var(--borde);text-align:left;white-space:nowrap}
+  td.titulo{white-space:normal;min-width:180px}
+  .tag{padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700;color:#fff}
+  .ALTA{background:var(--alta)} .MEDIA{background:var(--media)} .BAJA{background:var(--baja)} .INFO{background:var(--info)}
+  .peso{width:70px;padding:5px}
+  .vacio{color:var(--suave);padding:20px 0;text-align:center}
+</style>
+</head>
+<body>
+<header><div>
+  <div><h1>Mis entregas</h1><small>Lo que más pesa en tu nota, primero</small></div>
+  <div id="usuario" class="oculto"><span id="nombre"></span> · <a href="#" onclick="salir()" style="color:#fff">Salir</a></div>
+</div></header>
+
+<main>
+  <!-- Acceso: entrar o registrarse -->
+  <section id="acceso" class="tarjeta">
+    <div class="pestanas">
+      <button id="tab-entrar" class="activa" onclick="pestana('entrar')">Entrar</button>
+      <button id="tab-registro" onclick="pestana('registro')">Registrarme</button>
+    </div>
+
+    <form id="form-entrar" onsubmit="entrar(event)">
+      <label for="correo-entrar">Correo institucional</label>
+      <input id="correo-entrar" type="email" required placeholder="nombre.apellido@uniminuto.edu.co">
+      <button class="boton">Entrar</button>
+    </form>
+
+    <form id="form-registro" class="oculto" onsubmit="registrar(event)">
+      <label for="nombre-reg">Nombre</label>
+      <input id="nombre-reg" required>
+      <label for="correo-reg">Correo institucional</label>
+      <input id="correo-reg" type="email" required>
+      <label for="sede-reg">Sede</label>
+      <select id="sede-reg" required></select>
+      <label for="url-reg">URL de tu calendario del aula virtual</label>
+      <input id="url-reg" required placeholder="https://presencial.aulasuniminuto.edu.co/calendar/export_execute.php?...">
+      <div class="ayuda">¿Dónde la consigo? En el aula virtual: <b>Calendario → Importar o exportar calendarios →
+        Exportar calendario</b>. Marca <b>Todos los eventos</b> y <b>60 días recientes y próximos</b>, pulsa
+        <b>Obtener URL del calendario</b> y copia el enlace. Es personal: no lo compartas.</div>
+      <button class="boton">Crear cuenta e importar mis entregas</button>
+    </form>
+    <p id="msg-acceso" class="mensaje"></p>
+  </section>
+
+  <!-- Panel del estudiante -->
+  <section id="panel" class="tarjeta oculto">
+    <div class="barra">
+      <h2>Entregas por prioridad</h2>
+      <div class="acciones">
+        <button class="boton secundario" onclick="sincronizar(this)">Actualizar desde el aula</button>
+        <button class="boton secundario" onclick="document.getElementById('cambiar-url').classList.toggle('oculto')">Cambiar URL</button>
+      </div>
+    </div>
+    <form id="cambiar-url" class="oculto" onsubmit="cambiarUrl(event)">
+      <input id="url-nueva" required placeholder="Pega la nueva URL del calendario">
+      <button class="boton">Guardar URL</button>
+    </form>
+    <p style="color:var(--suave);font-size:14px">Prioridad = peso en la nota ÷ días que faltan.
+      Si una actividad no dice cuánto vale, escríbelo en la columna Peso.</p>
+    <p id="msg-panel" class="mensaje"></p>
+    <div class="tabla"><table>
+      <thead><tr><th>Alerta</th><th>Actividad</th><th>Curso</th><th>Peso %</th><th>Faltan</th><th>Prioridad</th></tr></thead>
+      <tbody id="filas"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+let estudiante = null;
+const $ = id => document.getElementById(id);
+
+function guardarSesion(e){ try{ localStorage.setItem('estudiante', JSON.stringify(e)) }catch(_){} }
+function leerSesion(){ try{ return JSON.parse(localStorage.getItem('estudiante')) }catch(_){ return null } }
+
+async function api(ruta, opciones = {}){
+  const r = await fetch(ruta, {headers:{'Content-Type':'application/json'}, ...opciones});
+  const datos = await r.json().catch(() => ({}));
+  if(!r.ok){
+    const d = datos.detail;
+    throw new Error(Array.isArray(d) ? 'Revisa los datos del formulario' : (d || 'Error ' + r.status));
+  }
+  return datos;
+}
+function mensaje(id, texto, tipo){ const p = $(id); p.textContent = texto; p.className = 'mensaje ' + (tipo || ''); }
+
+function pestana(cual){
+  $('tab-entrar').classList.toggle('activa', cual === 'entrar');
+  $('tab-registro').classList.toggle('activa', cual === 'registro');
+  $('form-entrar').classList.toggle('oculto', cual !== 'entrar');
+  $('form-registro').classList.toggle('oculto', cual !== 'registro');
+  mensaje('msg-acceso', '');
+}
+
+async function cargarSedes(){
+  const sedes = await api('/sedes');
+  $('sede-reg').innerHTML = sedes.map(s => `<option value="${s.id}">${s.nombre} (${s.region})</option>`).join('');
+}
+
+async function entrar(ev){
+  ev.preventDefault();
+  try{
+    const e = await api('/estudiantes/buscar?correo=' + encodeURIComponent($('correo-entrar').value));
+    iniciar(e);
+  }catch(err){ mensaje('msg-acceso', err.message, 'error') }
+}
+
+async function registrar(ev){
+  ev.preventDefault();
+  const boton = ev.target.querySelector('button'); boton.disabled = true;
+  mensaje('msg-acceso', 'Creando tu cuenta e importando tu calendario...');
+  try{
+    const e = await api('/estudiantes', {method:'POST', body: JSON.stringify({
+      nombre: $('nombre-reg').value, correo: $('correo-reg').value,
+      sede_id: parseInt($('sede-reg').value), calendario_url: $('url-reg').value.trim()})});
+    iniciar(e);
+    mensaje('msg-panel', `¡Listo! Importamos ${e.entregas_importadas} entregas de tu aula virtual.`, 'ok');
+  }catch(err){ mensaje('msg-acceso', err.message, 'error') }
+  boton.disabled = false;
+}
+
+function iniciar(e){
+  estudiante = {id: e.id, nombre: e.nombre}; guardarSesion(estudiante);
+  $('acceso').classList.add('oculto'); $('panel').classList.remove('oculto');
+  $('usuario').classList.remove('oculto'); $('nombre').textContent = e.nombre;
+  cargarEntregas();
+}
+
+function salir(){
+  try{ localStorage.removeItem('estudiante') }catch(_){}
+  location.reload();
+}
+
+async function cargarEntregas(){
+  const datos = await api(`/estudiantes/${estudiante.id}/entregas`);
+  $('filas').innerHTML = datos.length ? datos.map(e => `<tr>
+    <td><span class="tag ${e.alerta}">${e.alerta}</span></td>
+    <td class="titulo">${e.titulo}</td><td>${e.curso}</td>
+    <td><input class="peso" value="${e.peso ?? ''}" placeholder="?" onchange="guardarPeso('${e.uid}', this.value)"></td>
+    <td>${e.dias_restantes} días</td><td>${e.prioridad}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="vacio">No tienes entregas pendientes. 🎉</td></tr>';
+}
+
+async function guardarPeso(uid, valor){
+  try{
+    await api('/actividades/' + encodeURIComponent(uid) + '/peso', {method:'PUT', body: JSON.stringify({peso: parseFloat(valor)})});
+    mensaje('msg-panel', 'Peso guardado.', 'ok');
+  }catch(err){ mensaje('msg-panel', err.message, 'error') }
+  cargarEntregas();
+}
+
+async function sincronizar(boton){
+  boton.disabled = true; mensaje('msg-panel', 'Consultando el aula virtual...');
+  try{
+    const r = await api(`/estudiantes/${estudiante.id}/sincronizar`, {method:'POST'});
+    mensaje('msg-panel', `Actualizado: ${r.entregas_importadas} entregas en el calendario.`, 'ok');
+    cargarEntregas();
+  }catch(err){ mensaje('msg-panel', err.message, 'error') }
+  boton.disabled = false;
+}
+
+async function cambiarUrl(ev){
+  ev.preventDefault();
+  try{
+    const r = await api(`/estudiantes/${estudiante.id}/calendario`, {method:'PUT',
+      body: JSON.stringify({calendario_url: $('url-nueva').value.trim()})});
+    mensaje('msg-panel', `URL guardada. Importamos ${r.entregas_importadas} entregas.`, 'ok');
+    $('cambiar-url').classList.add('oculto'); cargarEntregas();
+  }catch(err){ mensaje('msg-panel', err.message, 'error') }
+}
+
+cargarSedes();
+const sesion = leerSesion();
+if(sesion) iniciar(sesion);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+requests==2.34.2
+icalendar==7.3.0
+python-dotenv==1.2.3
+minio==7.2.20
+pymongo==4.20.0
+PyMySQL==1.2.4
+cryptography==50.0.1
+fastapi==0.165.0
+uvicorn==0.54.0
